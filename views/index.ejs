@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Push Notification Service</title>
+
+    <style>
+        body {
+            --spacing-xs: 8px;
+            --spacing-sm: 12px;
+            --spacing-md: 24px;
+            --spacing-lg: 48px;
+
+            --card-border: 1px solid #333333;
+            --card-width: 300px;
+            
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .dialog {
+            padding: var(--spacing-md);
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            border: var(--card-border);
+            width: var(--card-width);
+            padding: var(--spacing-md);
+            margin: var(--spacing-sm);
+        }
+
+        .dialog__header, .card__header {
+            text-align: center;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .dialog__button, .card__button {
+            margin-top: var(--spacing-xs);
+        }
+
+        .input, .output {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .output__label, .input__label {
+
+        }
+
+        .output__value, .input__field {
+
+        }
+
+        .flex-column {
+            display: flex;
+            flex-direction: column;   
+        }
+
+        .flex-row {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .flex-wrap {
+            display: flex;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body class="flex-column">
+
+    <!-- Header -->
+    <div>
+        <span>Push Notifications</span>
+    </div>
+
+    <div class="flex-row flex-wrap">
+
+        <!-- Get Keys -->
+        <div class="card card--keys">
+            <div class="card__header">
+                <span>Generate VAPID Keys</span>
+            </div>
+            <button class="card__button" onclick="showKeysDialog()">Get Keys</button>
+
+            <!-- Keys Dialog -->
+            <dialog class="dialog dialog--keys" onclose="keysDialogClosed()">
+                <div class="flex-column">
+                    <div class="dialog__header">
+                        <span>VAPID Keys</span>
+                    </div>
+                    <div class="output">
+                        <span class="output__label">Private:</span>
+                        <span class="output__value output__value--private"></span>
+                    </div>
+                    <div class="output">
+                        <span class="output__label">Public:</span>
+                        <span class="output__value output__value--public"></span>
+                    </div>
+                    <button class="dialog__button" onclick="closeKeysDialog()">Close</button>
+                </div>
+            </dialog>
+        </div>
+
+        <!-- Status -->
+        <div class="card card--registration-status">
+            <div class="card__header">
+                <span>Registration Status</span>
+            </div>
+            <div class="input">
+                <span class="input__label">Public VAPID Key</span>
+                <input class="input__field input__field--public-key" type="text" />
+            </div>
+            <button class="card__button" onclick="registrationStatus()">Check Status</button>
+        </div>
+
+        <!-- Opt in -->
+        <div class="card card--opt-in">
+            <div class="card__header">
+                <span>Opt In</span>
+            </div>
+            <div class="input">
+                <span class="input__label">Private VAPID Key</span>
+                <input class="input__field input__field--private-key" type="text" />
+            </div>
+            <div class="input">
+                <span class="input__label">Public VAPID Key</span>
+                <input class="input__field input__field--public-key" type="text" />
+            </div>
+            <div class="input">
+                <span class="input__label">Subject</span>
+                <input class="input__field input__field--subject" type="text" />
+            </div>
+            <button class="card__button" onclick="optIn()">Opt In</button>
+        </div>
+
+        <!-- Opt out -->
+        <div class="card card--opt-out">
+            <div class="card__header">
+                <span>Opt Out</span>
+            </div>
+            <div class="input">
+                <span class="input__label">Public VAPID Key</span>
+                <input class="input__field input__field--public-key" type="text" />
+            </div>
+            <button class="card__button" onclick="optOut()">Opt Out</button>
+        </div>
+
+        <!-- Push -->
+        <div class="card card--push">
+            <div class="card__header">
+                <span>Push</span>
+            </div>
+            <div class="input">
+                <span class="input__label">Public VAPID Key</span>
+                <input class="input__field input__field--public-key" type="text" />
+            </div>
+            <div class="input">
+                <span class="input__label">Title</span>
+                <input class="input__field input__field--title" type="text" />
+            </div>
+            <div class="input">
+                <span class="input__label">Message</span>
+                <input class="input__field input__field--message" type="text" />
+            </div>
+            <button class="card__button" onclick="push()">Push</button>
+        </div>
+
+        <!-- Register Service Worker -->
+        <div class="card card--service-worker">
+            <div class="card__header">
+                <span>Service Worker</span>
+            </div>
+            <button class="card__button" onclick="requestNotificationPermission()">Request Notification Permission</button>
+            <button class="card__button" onclick="registerPushServiceWorker()">Register Service Worker</button>
+        </div>
+
+        <!-- Show Local Notification -->
+        <div class="card card--show-local-notification">
+            <div class="card__header">
+                <span>Show Local Notification</span>
+            </div>
+            <div class="input">
+                <span class="input__label">Title</span>
+                <input class="input__field input__field--title" type="text" />
+            </div>
+            <div class="input">
+                <span class="input__label">Message</span>
+                <input class="input__field input__field--message" type="text" />
+            </div>
+            <button class="card__button" onclick="showLocalNotification()">Show Notification</button>
+        </div>
+    </div>
+
+    <script>
+        
+        //
+        async function getKeysAsync() {
+
+            const url = '/?action=keys';
+            let response = await fetch(url, {
+                method: 'GET'
+            });
+
+            if (!response.ok) {
+
+                throw 'Get keys failed';
+            }
+
+            let json = await response.json();
+            if (!json.data) {
+
+                throw 'Missing data object in response.';
+            }
+            
+            return json.data;
+        }
+
+        //
+        async function showKeysDialog() {
+
+            try {
+
+                let keys = await getKeysAsync();
+
+                let privateKey = keys.privateVapidKey;
+                let publicKey = keys.publicVapidKey;
+
+                console.log(`Get keys succeeded: Private "${privateKey}" - Public "${publicKey}"`);
+                
+                let privateKeyValueElem = document.querySelector('.dialog--keys .output__value--private');
+                let publicKeyValueElem = document.querySelector('.dialog--keys .output__value--public');
+                let keysDialog = document.querySelector('.dialog--keys');
+
+                privateKeyValueElem.textContent = privateKey;
+                publicKeyValueElem.textContent = publicKey;
+
+                keysDialog.showModal();
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function registrationStatus() {
+
+            try {
+
+                const publicKeyInput = document.querySelector('.card--registration-status .input__field--public-key');
+                const publicKey = publicKeyInput.value;
+
+                if (!publicKey) {
+
+                    throw 'Missing required input.';
+                }
+
+                const url = `/?action=registrationStatus&publicVapidKey=${publicKey}`;
+                let response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                if (response.ok) {
+
+                    let json = await response.json();
+                    if (!json.data) {
+
+                        throw 'Missing data object in response.';
+                    }
+
+                    let status = json.data.registered ? 'Registered' : 'Unregistered';
+                    console.log(`Status: ${status}`);
+
+                    publicKeyInput.value = '';
+                }
+                else {
+
+                    throw 'Check status failed';
+                }
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function optIn() {
+
+            try {
+
+                const privateKeyInput = document.querySelector('.card--opt-in .input__field--private-key');
+                const publicKeyInput = document.querySelector('.card--opt-in .input__field--public-key');
+                const subjectInput = document.querySelector('.card--opt-in .input__field--subject');
+
+                const privateKey = privateKeyInput.value;
+                const publicKey = publicKeyInput.value;
+                const subject = subjectInput.value;
+
+                if (!privateKey || !publicKey || !subject) {
+
+                    throw 'Missing required input';
+                }
+
+                const url = '/?action=optin';
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            privateVapidKey: privateKey,
+                            publicVapidKey: publicKey,
+                            subject: subject
+                        }
+                    })
+                });
+
+                if (response.ok) {
+
+                    console.log('Opt in succeeded');
+
+                    privateKeyInput.value = '';
+                    publicKeyInput.value = '';
+                    subjectInput.value = '';
+                }
+                else {
+
+                    throw 'Opt in failed';
+                }
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function optOut() {
+
+            try {
+
+                const publicKeyInput = document.querySelector('.card--opt-out .input__field--public-key');
+                const publicKey = publicKeyInput.value;
+
+                if (!publicKey) {
+
+                    throw 'Missing required input';
+                }
+
+                const url = '/?action=optout';
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            publicKey: publicKey
+                        }
+                    })
+                });
+
+                if (response.ok) {
+
+                    console.log('Opt out succeeded');
+
+                    publicKeyInput.value = '';
+                }
+                else {
+
+                    throw 'Opt out failed';
+                }
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function push() {
+
+            try {
+
+                const publicKeyInput = document.querySelector('.card--push .input__field--public-key');
+                const titleInput = document.querySelector('.card--push .input__field--title');
+                const messageInput = document.querySelector('.card--push .input__field--message');
+
+                const publicKey = publicKeyInput.value;
+                const title = titleInput.value;
+                const message = messageInput.value;
+
+                if (!publicKey || !title || !message) {
+
+                    throw 'Missing required input';
+                }
+
+                const url = '/?action=push';
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            publicKey: publicKey,
+                            title: title,
+                            options: {
+                                body: message
+                            }
+                        }
+                    })
+                });
+
+                if (response.ok) {
+
+                    console.log('Push succeeded');
+                    
+                    publicKeyInput.value = '';
+                    titleInput.value = '';
+                    messageInput.value = '';
+                }
+                else {
+
+                    throw 'Push failed';
+                }
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+    
+        //
+        async function registerPushServiceWorker() {
+
+            try {
+
+                if (!('serviceWorker' in navigator)) {
+                    
+                    throw 'No Service Worker support!';
+                }
+    
+                if (!('PushManager' in window)) {
+    
+                    throw 'No Push API Support!';
+                }
+
+                const serviceUrl = '/static/push-service.js';
+                const pushServiceRegistration = await navigator.serviceWorker.register(serviceUrl);
+
+                return pushServiceRegistration;
+            }
+            catch(e) {
+                
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function requestNotificationPermission() {
+
+            try {
+
+                // granted: user has accepted the request
+                // default: user has dismissed the notification permission popup by clicking on x
+                // denied: user has denied the request.
+                const permission = await window.Notification.requestPermission();
+
+                if (permission !== 'granted') {
+
+                    throw 'Permission not granted for Notification';
+                }
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+
+        //
+        async function showLocalNotification() {
+
+            try {
+
+                const titleInput = document.querySelector('.card--show-local-notification .input__field--title');
+                const messageInput = document.querySelector('.card--show-local-notification .input__field--message');
+
+                const title = titleInput.value;
+                const message = messageInput.value;
+
+                if (!title || !message) {
+
+                    throw 'Missing required input';
+                }
+
+                const options = {
+
+                    // Visual Options
+                    "body": message,
+                    //"icon": "<URL String>",
+                    //"image": "<URL String>",
+                    //"badge": "<URL String>",
+                    //"vibrate": "<Array of Integers>",
+                    //"sound": "<URL String>",
+                    //"dir": "<String of 'auto' | 'ltr' | 'rtl'>",
+
+                    // Behavioural Options
+                    //"tag": "<String>",
+                    //"data": "<Anything>",
+                    //"requireInteraction": "<boolean>",
+                    //"renotify": "<Boolean>",
+                    //"silent": "<Boolean>",
+
+                    // Both Visual & Behavioural Options
+                    //"actions": "<Array of Strings>",
+
+                    // Information Option. No visual affect.
+                    //"timestamp": "<Long>"
+                }
+
+                let pushServiceRegistration = await registerPushServiceWorker();
+                pushServiceRegistration.showNotification(title, options);
+
+                titleInput.value = '';
+                messageInput.value = '';
+            }
+            catch(e) {
+
+                console.log(JSON.stringify(e));
+            }
+        }
+        
+        //
+        function closeKeysDialog() {
+
+            let dialog = document.querySelector('.dialog--keys');
+            dialog.close();
+        }
+
+        //
+        function keysDialogClosed() {
+            
+            let privateKeyValueElem = document.querySelector('.dialog--keys .output__value--private');
+            let publicKeyValueElem = document.querySelector('.dialog--keys .output__value--public');
+            
+            // Clear out old values
+            privateKeyValueElem.textContent = '';
+            publicKeyValueElem.textContent = '';
+        }
+
+    </script>
+</body>
+</html>
